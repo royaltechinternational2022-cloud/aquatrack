@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
-import { formatMoney, formatLiters, paymentLabel } from "@/lib/format";
+import { formatMoney, formatLiters, paymentLabel, formatAdminDateTime } from "@/lib/format";
 
 interface AuditLog {
   id: string;
@@ -94,8 +94,9 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
       <div>
         <h1 className="text-xl font-bold text-slate-800">Transaction #{sale.transactionNumber}</h1>
         <p className="text-slate-400 text-sm">
-          {new Date(sale.transactionDate).toLocaleString("en-LK", { dateStyle: "full", timeStyle: "short" })}
+          {formatAdminDateTime(sale.transactionDate, { dateStyle: "full", timeStyle: "short" })}
         </p>
+        <p className="text-slate-300 text-xs mt-0.5">Times shown in Norway time</p>
       </div>
 
       {sale.flagged && (
@@ -197,7 +198,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
               return (
                 <div key={log.id} className="rounded-xl bg-white border border-slate-100 p-4 text-sm">
                   <p className="text-xs text-slate-400 mb-2">
-                    {new Date(log.createdAt).toLocaleString("en-LK", { dateStyle: "medium", timeStyle: "short" })} ·{" "}
+                    {formatAdminDateTime(log.createdAt)} ·{" "}
                     {log.changedBy.name}
                   </p>
                   <p className="text-slate-600">

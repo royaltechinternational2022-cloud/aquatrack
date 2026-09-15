@@ -135,6 +135,13 @@ export function getBusinessDateKey(reference: Date = new Date()): string {
   return formatBusiness(reference, "yyyy-MM-dd");
 }
 
+/** Inverse of getBusinessDateKey: the [start, end] instant range for a "yyyy-MM-dd" business day. */
+export function businessDateKeyToRange(businessDate: string): PeriodRange {
+  const [y, m, d] = businessDate.split("-").map(Number);
+  const wallClockNoon = new Date(y, m - 1, d, 12, 0, 0);
+  return getPeriodRange("today", fromBusinessTime(wallClockNoon));
+}
+
 export function nowInBusinessTime(): Date {
   return toZonedTime(new Date(), APP_TIMEZONE);
 }

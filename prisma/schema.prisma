@@ -160,5 +160,9 @@ model AppSettings {
   enabledPaymentMethods String   @default("[\"CASH\"]")
   priceAlertLowerRatio  Float    @default(0.5)
   priceAlertUpperRatio  Float    @default(2.0)
+  // Reference price used only to sanity-check the water meter against
+  // recorded sales — separate from PricingSetting, which prices actual sales.
+  meterReferencePricePerLiter Float @default(4)
+  meterDiscrepancyThresholdPct Float @default(15)
   updatedAt             DateTime @updatedAt
 }

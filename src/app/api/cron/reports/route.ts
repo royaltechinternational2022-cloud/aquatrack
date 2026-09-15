@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { buildReport, renderReportEmailHtml } from "@/lib/reports";
 import { sendReportEmail } from "@/lib/email";
-import { formatBusiness } from "@/lib/tz";
+import { formatBusiness, getBusinessDateKey } from "@/lib/tz";
+import { getMeterDiscrepancy } from "@/lib/meter";
 import { addDays } from "date-fns";
 
 /**
@@ -31,12 +32,13 @@ export async function POST(req: NextRequest) {
 
   if (settings.dailyEnabled && pastScheduledTime) {
     const report = await buildReport("today");
+    const meterDiscrepancy = await getMeterDiscrepancy(getBusinessDateKey(now));
     await sendReportEmail({
       reportType: "DAILY",
       reportPeriod: report.reportPeriodKey,
       recipients,
-      subject: `Daily Water Sales Report – ${report.periodLabel}`,
-      html: renderReportEmailHtml("Daily Water Sales Report", report),
+      subject: `Daily Water Sales Report – ${report.periodLabel}${meterDiscrepancy.isBigDeviation ? " ⚠ AVVIK" : ""}`,
+      html: renderReportEmailHtml("Daily Water Sales Report", report, meterDiscrepancy),
     });
     results.push(`DAILY:${report.reportPeriodKey}`);
   }

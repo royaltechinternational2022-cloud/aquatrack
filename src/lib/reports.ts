@@ -78,7 +78,20 @@ function growthLine(pct: number | null): string {
   return `<span style="color:${color};font-weight:600;">${sign}${pct.toFixed(1)}%</span>`;
 }
 
-export function renderReportEmailHtml(title: string, data: ReportData): string {
+export interface MeterDiscrepancyForEmail {
+  isBigDeviation: boolean;
+  deviationPct: number | null;
+  thresholdPct: number;
+  meterLiters: number | null;
+  expectedRevenue: number | null;
+  actualRevenue: number;
+}
+
+export function renderReportEmailHtml(
+  title: string,
+  data: ReportData,
+  meterDiscrepancy?: MeterDiscrepancyForEmail | null
+): string {
   const employeeRows = data.employeeBreakdown
     .map(
       (e) => `
@@ -98,6 +111,19 @@ export function renderReportEmailHtml(title: string, data: ReportData): string {
       <p style="color:#cffafe;margin:4px 0 0;font-size:14px;">${data.periodLabel}</p>
     </div>
     <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+      ${
+        meterDiscrepancy?.isBigDeviation
+          ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin-bottom:24px;">
+              <p style="margin:0 0 4px;font-weight:700;color:#b91c1c;font-size:14px;">⚠ Avvik mellom vannmåler og registrert salg</p>
+              <p style="margin:0;font-size:13px;color:#7f1d1d;">
+                Målerdifferanse: ${liters(meterDiscrepancy.meterLiters ?? 0)} (forventet ${money(
+              meterDiscrepancy.expectedRevenue ?? 0
+            )}) vs. registrert salg ${money(meterDiscrepancy.actualRevenue)} —
+                ${meterDiscrepancy.deviationPct?.toFixed(0)}% avvik (terskel ${meterDiscrepancy.thresholdPct}%).
+              </p>
+            </div>`
+          : ""
+      }
       <div style="display:flex;gap:12px;margin-bottom:24px;">
         <div style="flex:1;background:#f0fdff;border-radius:10px;padding:16px;text-align:center;">
           <div style="font-size:22px;font-weight:700;color:#0e7490;">${liters(data.summary.liters)}</div>

@@ -17,6 +17,7 @@ export default function SettingsPage() {
       <h1 className="text-xl font-bold text-slate-800">Settings</h1>
       <PricingSection />
       <PaymentMethodsSection />
+      <MeterAlertSection />
       <ReportSettingsSection />
     </div>
   );
@@ -142,6 +143,71 @@ function PaymentMethodsSection() {
             {m.label}
           </label>
         ))}
+      </div>
+      <SaveButton saving={saving} saved={saved} />
+    </form>
+  );
+}
+
+function MeterAlertSection() {
+  const [referencePrice, setReferencePrice] = useState("4");
+  const [thresholdPct, setThresholdPct] = useState("15");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/app-settings")
+      .then((r) => r.json())
+      .then((d) => {
+        setReferencePrice(String(d.settings.meterReferencePricePerLiter));
+        setThresholdPct(String(d.settings.meterDiscrepancyThresholdPct));
+      });
+  }, []);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setSaved(false);
+    await fetch("/api/app-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        meterReferencePricePerLiter: parseFloat(referencePrice),
+        meterDiscrepancyThresholdPct: parseFloat(thresholdPct),
+      }),
+    });
+    setSaving(false);
+    setSaved(true);
+  }
+
+  return (
+    <form onSubmit={save} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-4">
+      <h2 className="font-bold text-slate-700 text-sm">Vannmåler-varsel</h2>
+      <p className="text-xs text-slate-400">
+        Sammenligner målerdifferanse (til referansepris) mot registrert salg hver dag. Ved stort avvik får eier
+        varsel i den daglige e-postrapporten.
+      </p>
+      <div>
+        <label className="block text-xs text-slate-400 mb-1">Referansepris per liter (Rs.)</label>
+        <input
+          type="number"
+          step="0.01"
+          required
+          value={referencePrice}
+          onChange={(e) => setReferencePrice(e.target.value)}
+          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-xs text-slate-400 mb-1">Varsle ved avvik større enn (%)</label>
+        <input
+          type="number"
+          step="1"
+          required
+          value={thresholdPct}
+          onChange={(e) => setThresholdPct(e.target.value)}
+          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+        />
       </div>
       <SaveButton saving={saving} saved={saved} />
     </form>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
-import { formatMoney, formatLiters } from "@/lib/format";
+import { formatMoney, formatLiters, formatAdminDate, formatAdminDateTime } from "@/lib/format";
 
 interface Employee {
   id: string;
@@ -99,10 +99,10 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
       <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-2 text-sm">
         <DetailRow label="Role" value={employee.role} />
         <DetailRow label="Status" value={employee.status} />
-        <DetailRow label="Created" value={new Date(employee.createdAt).toLocaleDateString("en-LK")} />
+        <DetailRow label="Created" value={formatAdminDate(employee.createdAt)} />
         <DetailRow
           label="Last Login"
-          value={employee.lastLoginAt ? new Date(employee.lastLoginAt).toLocaleString("en-LK") : "Never"}
+          value={employee.lastLoginAt ? formatAdminDateTime(employee.lastLoginAt) : "Never"}
         />
       </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatMoney, formatLiters, paymentLabel } from "@/lib/format";
+import { formatMoney, formatLiters, paymentLabel, formatEmployeeTime } from "@/lib/format";
 
 interface Sale {
   id: string;
@@ -37,7 +37,7 @@ export default function EmployeeHistoryPage() {
               <p className="font-bold text-slate-800">{formatLiters(sale.liters)}</p>
               <p className="text-xs text-slate-400 mt-0.5">
                 #{sale.transactionNumber} · {paymentLabel(sale.paymentMethod)} ·{" "}
-                {new Date(sale.transactionDate).toLocaleTimeString("en-LK", { hour: "2-digit", minute: "2-digit" })}
+                {formatEmployeeTime(sale.transactionDate)}
               </p>
             </div>
             <p className="font-bold text-cyan-700">{formatMoney(sale.amount)}</p>

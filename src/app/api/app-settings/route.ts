@@ -11,7 +11,9 @@ export async function GET() {
 }
 
 const schema = z.object({
-  enabledPaymentMethods: z.array(z.enum(["CASH", "CARD", "BANK_TRANSFER", "OTHER"])).min(1),
+  enabledPaymentMethods: z.array(z.enum(["CASH", "CARD", "BANK_TRANSFER", "OTHER"])).min(1).optional(),
+  meterReferencePricePerLiter: z.number().positive().optional(),
+  meterDiscrepancyThresholdPct: z.number().positive().optional(),
 });
 
 export async function PUT(req: NextRequest) {
@@ -22,9 +24,13 @@ export async function PUT(req: NextRequest) {
   }
 
   await getAppSettings();
+  const { enabledPaymentMethods, ...rest } = parsed.data;
   const settings = await prisma.appSettings.update({
     where: { id: "singleton" },
-    data: { enabledPaymentMethods: JSON.stringify(parsed.data.enabledPaymentMethods) },
+    data: {
+      ...rest,
+      ...(enabledPaymentMethods ? { enabledPaymentMethods: JSON.stringify(enabledPaymentMethods) } : {}),
+    },
   });
 
   return NextResponse.json({

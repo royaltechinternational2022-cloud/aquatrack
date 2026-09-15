@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { formatMoney, formatLiters, paymentLabel } from "@/lib/format";
+import { formatMoney, formatLiters, paymentLabel, formatAdminDateTime } from "@/lib/format";
 
 interface Sale {
   id: string;
@@ -74,7 +74,10 @@ export default function TransactionsPage() {
 
   return (
     <div className="px-5 py-6 max-w-3xl mx-auto w-full space-y-4">
-      <h1 className="text-xl font-bold text-slate-800">Transactions</h1>
+      <div>
+        <h1 className="text-xl font-bold text-slate-800">Transactions</h1>
+        <p className="text-slate-300 text-xs">Times shown in Norway time</p>
+      </div>
 
       <input
         value={search}
@@ -147,10 +150,7 @@ export default function TransactionsPage() {
                   )}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {sale.employee.name} · {new Date(sale.transactionDate).toLocaleString("en-LK", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
+                  {sale.employee.name} · {formatAdminDateTime(sale.transactionDate)}
                 </p>
               </div>
               <div className="text-right">
