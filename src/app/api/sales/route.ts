@@ -11,6 +11,7 @@ const createSchema = z.object({
   requestId: z.string().min(1),
   liters: z.number().positive(),
   amount: z.number().positive().optional(),
+  isFree: z.boolean().optional(),
   paymentMethod: z.enum(["CASH", "CARD", "BANK_TRANSFER", "OTHER"]),
   confirmedOverride: z.boolean().optional(),
 });
@@ -36,10 +37,12 @@ export async function POST(req: NextRequest) {
   const pricingMode = pricingSetting?.pricingMode ?? "MANUAL";
 
   let amount: number;
-  if (pricingMode === "PER_LITER" && pricingSetting?.pricePerLiter) {
+  if (parsed.data.isFree) {
+    amount = 0;
+  } else if (pricingMode === "PER_LITER" && pricingSetting?.pricePerLiter) {
     amount = Number((liters * pricingSetting.pricePerLiter).toFixed(2));
   } else {
-    if (!parsed.data.amount) {
+    if (parsed.data.amount === undefined) {
       return NextResponse.json({ error: "Amount is required for manual pricing" }, { status: 400 });
     }
     amount = parsed.data.amount;
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   let flagged = false;
   let flagReason: string | undefined;
-  if (pricingMode === "MANUAL") {
+  if (pricingMode === "MANUAL" && !parsed.data.isFree) {
     const check = await checkPriceAnomaly(liters, amount);
     if (check.flagged && !confirmedOverride) {
       return NextResponse.json(

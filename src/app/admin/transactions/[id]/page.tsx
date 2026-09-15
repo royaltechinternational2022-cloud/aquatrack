@@ -106,7 +106,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
 
       <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-3">
         <DetailRow label="Liters" value={formatLiters(sale.liters)} />
-        <DetailRow label="Amount" value={formatMoney(sale.amount)} />
+        <DetailRow label="Amount" value={sale.amount === 0 ? "FREE" : formatMoney(sale.amount)} />
         <DetailRow label="Payment" value={paymentLabel(sale.paymentMethod)} />
         <DetailRow label="Employee" value={`${sale.employee.name}${sale.employee.employeeCode ? ` (${sale.employee.employeeCode})` : ""}`} />
         <DetailRow label="Status" value={sale.status === "CORRECTED" ? "Corrected" : "Completed"} />

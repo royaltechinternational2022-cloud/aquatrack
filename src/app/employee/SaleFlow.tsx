@@ -20,6 +20,7 @@ export default function SaleFlow() {
   const [step, setStep] = useState<Step>("liters");
   const [liters, setLiters] = useState<number | null>(null);
   const [customLitersInput, setCustomLitersInput] = useState("");
+  const [isFree, setIsFree] = useState(false);
   const [amountInput, setAmountInput] = useState("");
   const [amount, setAmount] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export default function SaleFlow() {
     setStep("liters");
     setLiters(null);
     setCustomLitersInput("");
+    setIsFree(false);
     setAmountInput("");
     setAmount(null);
     setPaymentMethod(null);
@@ -55,15 +57,32 @@ export default function SaleFlow() {
     setError(null);
   }
 
+  const enabledMethods = settings
+    ? ALL_PAYMENT_METHODS.filter((m) => settings.enabledPaymentMethods.includes(m))
+    : [];
+
+  /** Once liters + amount are both known, either auto-pick the sole payment method or ask for one. */
+  function advanceAfterAmountKnown() {
+    if (enabledMethods.length === 1) {
+      setPaymentMethod(enabledMethods[0]);
+      setStep("confirm");
+    } else {
+      setStep("payment");
+    }
+  }
+
   function chooseLiters(value: number) {
     setLiters(value);
     proceedAfterLiters(value);
   }
 
   function proceedAfterLiters(value: number) {
-    if (settings?.pricingMode === "PER_LITER" && settings.pricePerLiter) {
+    if (isFree) {
+      setAmount(0);
+      advanceAfterAmountKnown();
+    } else if (settings?.pricingMode === "PER_LITER" && settings.pricePerLiter) {
       setAmount(Number((value * settings.pricePerLiter).toFixed(2)));
-      setStep("payment");
+      advanceAfterAmountKnown();
     } else {
       setAmountInput("");
       setStep("amount");
@@ -81,7 +100,7 @@ export default function SaleFlow() {
     const value = parseFloat(amountInput);
     if (!value || value <= 0) return;
     setAmount(value);
-    setStep("payment");
+    advanceAfterAmountKnown();
   }
 
   function choosePayment(method: string) {
@@ -90,7 +109,7 @@ export default function SaleFlow() {
   }
 
   async function submitSale(confirmedOverride = false) {
-    if (!liters || !amount || !paymentMethod) return;
+    if (!liters || amount === null || !paymentMethod) return;
     const id = requestId || crypto.randomUUID();
     if (!requestId) setRequestId(id);
 
@@ -104,7 +123,7 @@ export default function SaleFlow() {
         body: JSON.stringify({
           requestId: id,
           liters,
-          amount,
+          ...(isFree ? { isFree: true } : { amount }),
           paymentMethod,
           confirmedOverride,
         }),
@@ -141,14 +160,14 @@ export default function SaleFlow() {
     );
   }
 
-  const enabledMethods = ALL_PAYMENT_METHODS.filter((m) => settings.enabledPaymentMethods.includes(m));
-
   return (
     <div className="flex-1 flex flex-col px-5 py-6 max-w-md mx-auto w-full">
       {step === "liters" && (
         <StepLiters
           onQuick={chooseLiters}
           onCustom={() => setStep("customLiters")}
+          isFree={isFree}
+          onToggleFree={() => setIsFree((v) => !v)}
         />
       )}
 
@@ -182,7 +201,7 @@ export default function SaleFlow() {
         <StepPayment
           methods={enabledMethods}
           onChoose={choosePayment}
-          onBack={() => setStep(settings.pricingMode === "PER_LITER" ? "liters" : "amount")}
+          onBack={() => setStep(isFree || settings.pricingMode === "PER_LITER" ? "liters" : "amount")}
         />
       )}
 
@@ -202,7 +221,7 @@ export default function SaleFlow() {
           liters={liters}
           amount={amount}
           reason={warning?.reason}
-          onGoBack={() => setStep(settings.pricingMode === "PER_LITER" ? "liters" : "amount")}
+          onGoBack={() => setStep(isFree || settings.pricingMode === "PER_LITER" ? "liters" : "amount")}
           onConfirmAnyway={() => submitSale(true)}
         />
       )}
@@ -214,11 +233,33 @@ export default function SaleFlow() {
   );
 }
 
-function StepLiters({ onQuick, onCustom }: { onQuick: (v: number) => void; onCustom: () => void }) {
+function StepLiters({
+  onQuick,
+  onCustom,
+  isFree,
+  onToggleFree,
+}: {
+  onQuick: (v: number) => void;
+  onCustom: () => void;
+  isFree: boolean;
+  onToggleFree: () => void;
+}) {
   return (
     <div className="flex-1 flex flex-col">
-      <h1 className="text-xl font-bold text-slate-800 mb-1">New Sale</h1>
-      <p className="text-slate-400 text-sm mb-6">Select liters</p>
+      <div className="flex items-start justify-between mb-1">
+        <h1 className="text-xl font-bold text-slate-800">New Sale</h1>
+        <button
+          onClick={onToggleFree}
+          className={`shrink-0 px-3.5 py-2 rounded-full text-sm font-bold transition ${
+            isFree ? "bg-amber-500 text-white" : "bg-white border border-slate-200 text-slate-500"
+          }`}
+        >
+          🎁 FREE
+        </button>
+      </div>
+      <p className="text-slate-400 text-sm mb-6">
+        {isFree ? "This sale will be recorded as free — select liters" : "Select liters"}
+      </p>
       <div className="grid grid-cols-2 gap-3">
         {QUICK_LITERS.map((v) => (
           <button
@@ -342,7 +383,7 @@ function StepConfirm({
       <h2 className="text-xl font-bold text-slate-800 mb-6">Confirm Sale</h2>
       <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-6 mb-6 space-y-4">
         <Row label="Liters" value={formatLiters(liters)} big />
-        <Row label="Amount" value={formatMoney(amount)} big />
+        <Row label="Amount" value={amount === 0 ? "FREE" : formatMoney(amount)} big />
         <Row label="Payment" value={paymentLabel(paymentMethod)} />
       </div>
 
@@ -431,7 +472,7 @@ function StepDone({
       </div>
       <h2 className="text-xl font-bold text-slate-800">SALE RECORDED</h2>
       <p className="text-3xl font-extrabold text-cyan-700 mt-2">{formatLiters(sale.liters)}</p>
-      <p className="text-2xl font-bold text-slate-700">{formatMoney(sale.amount)}</p>
+      <p className="text-2xl font-bold text-slate-700">{sale.amount === 0 ? "FREE" : formatMoney(sale.amount)}</p>
       <p className="text-xs text-slate-400 mt-1">#{sale.transactionNumber}</p>
 
       <button

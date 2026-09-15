@@ -154,7 +154,13 @@ export default function TransactionsPage() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="font-bold text-cyan-700">{formatMoney(sale.amount)}</p>
+                <p className="font-bold text-cyan-700">
+                  {sale.amount === 0 ? (
+                    <span className="text-amber-600">FREE</span>
+                  ) : (
+                    formatMoney(sale.amount)
+                  )}
+                </p>
                 <p className="text-xs text-slate-400">
                   {formatLiters(sale.liters)} · {paymentLabel(sale.paymentMethod)}
                 </p>

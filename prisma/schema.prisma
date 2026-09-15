@@ -157,7 +157,7 @@ model EmailLog {
 // every time (enabled payment methods, price-anomaly thresholds, etc.)
 model AppSettings {
   id                    String   @id @default("singleton")
-  enabledPaymentMethods String   @default("[\"CASH\",\"CARD\",\"BANK_TRANSFER\",\"OTHER\"]")
+  enabledPaymentMethods String   @default("[\"CASH\"]")
   priceAlertLowerRatio  Float    @default(0.5)
   priceAlertUpperRatio  Float    @default(2.0)
   updatedAt             DateTime @updatedAt
