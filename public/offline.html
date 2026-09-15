@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>Offline — AquaTrack</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f0f9ff;
+        font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        color: #0f172a;
+        text-align: center;
+        padding: 24px;
+      }
+      .card {
+        max-width: 320px;
+      }
+      h1 {
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
+      p {
+        color: #64748b;
+        font-size: 14px;
+      }
+      button {
+        margin-top: 16px;
+        background: #0891b2;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>You're offline</h1>
+      <p>Check your connection and try again. No sale has been recorded yet.</p>
+      <button onclick="location.reload()">Retry</button>
+    </div>
+  </body>
+</html>

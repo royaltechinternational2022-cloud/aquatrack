@@ -1,0 +1,142 @@
+// Water Sales Management System — database schema
+// Designed so V1 (manual pricing, single branch, 2 employees) can grow into
+// multi-branch / multi-product / fixed-pricing without a rebuild.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum PricingMode {
+  MANUAL // employee enters liters + amount
+  PER_LITER // amount = liters * pricePerLiter
+  PRODUCT // future: per-product / per-customer-category pricing
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  OTHER
+}
+
+enum SaleStatus {
+  COMPLETED
+  CORRECTED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  username     String     @unique
+  email        String?
+  passwordHash String
+  role         Role
+  status       UserStatus @default(ACTIVE)
+  employeeCode String?    @unique
+  createdAt    DateTime   @default(now())
+  lastLoginAt  DateTime?
+
+  sales          Sale[]           @relation("EmployeeSales")
+  auditLogs      AuditLog[]       @relation("AuditActor")
+  pricingChanges PricingSetting[] @relation("PricingUpdater")
+}
+
+model Sale {
+  id                String        @id @default(cuid())
+  transactionNumber String        @unique
+  requestId         String        @unique // client-generated idempotency key
+  employeeId        String
+  employee          User          @relation("EmployeeSales", fields: [employeeId], references: [id])
+  liters            Float
+  amount            Float
+  paymentMethod     PaymentMethod
+  pricingMode       PricingMode
+  status            SaleStatus    @default(COMPLETED)
+  flagged           Boolean       @default(false)
+  flagReason        String?
+  transactionDate   DateTime      @default(now())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@index([transactionDate])
+  @@index([employeeId])
+}
+
+model PricingSetting {
+  id            String      @id @default(cuid())
+  pricingMode   PricingMode @default(MANUAL)
+  pricePerLiter Float?
+  currency      String      @default("LKR")
+  activeFrom    DateTime    @default(now())
+  updatedById   String
+  updatedBy     User        @relation("PricingUpdater", fields: [updatedById], references: [id])
+  updatedAt     DateTime    @updatedAt
+
+  @@index([activeFrom])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  transactionId String
+  transaction   Sale     @relation(fields: [transactionId], references: [id])
+  changedById   String
+  changedBy     User     @relation("AuditActor", fields: [changedById], references: [id])
+  oldValues     String // JSON snapshot
+  newValues     String // JSON snapshot
+  reason        String
+  createdAt     DateTime @default(now())
+}
+
+model ReportSettings {
+  id              String   @id @default("singleton")
+  recipientEmails String   @default("[]") // JSON array of strings
+  dailyEnabled    Boolean  @default(true)
+  dailyTime       String   @default("22:00") // HH:mm in `timezone`
+  weeklyEnabled   Boolean  @default(true)
+  weeklyDay       String   @default("Sunday")
+  monthlyEnabled  Boolean  @default(true)
+  timezone        String   @default("Asia/Colombo")
+  updatedAt       DateTime @updatedAt
+}
+
+model EmailLog {
+  id           String    @id @default(cuid())
+  reportType   String // DAILY | WEEKLY | MONTHLY
+  reportPeriod String // e.g. 2026-09-15, 2026-W37, 2026-09
+  recipient    String
+  status       String // SENT | FAILED
+  sentAt       DateTime?
+  retryCount   Int       @default(0)
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+
+  @@index([reportType, reportPeriod])
+}
+
+// Small singleton table for switches that don't warrant their own migration
+// every time (enabled payment methods, price-anomaly thresholds, etc.)
+model AppSettings {
+  id                    String   @id @default("singleton")
+  enabledPaymentMethods String   @default("[\"CASH\",\"CARD\",\"BANK_TRANSFER\",\"OTHER\"]")
+  priceAlertLowerRatio  Float    @default(0.5)
+  priceAlertUpperRatio  Float    @default(2.0)
+  updatedAt             DateTime @updatedAt
+}
