@@ -1,29 +1,65 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import MeterReadingGate from "@/components/MeterReadingGate";
 
-export default function EmployeeShell({ name, children }: { name: string; children: React.ReactNode }) {
+export default function EmployeeShell({
+  name,
+  needsOpeningReading,
+  children,
+}: {
+  name: string;
+  needsOpeningReading: boolean;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
+  const [checkingClosing, setCheckingClosing] = useState(false);
+  const [showClosingGate, setShowClosingGate] = useState(false);
 
-  async function logout() {
+  async function finishLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.replace("/login");
     router.refresh();
   }
 
+  async function handleLogoutClick() {
+    setCheckingClosing(true);
+    try {
+      const res = await fetch("/api/meter-readings");
+      const data = await res.json();
+      if (!data.closing) {
+        setShowClosingGate(true);
+        setCheckingClosing(false);
+        return;
+      }
+    } catch {
+      // If we can't check, don't block logout on a connection hiccup.
+    }
+    setCheckingClosing(false);
+    await finishLogout();
+  }
+
+  if (needsOpeningReading) {
+    return <MeterReadingGate type="OPENING" onDone={() => router.refresh()} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
+      {showClosingGate && <MeterReadingGate type="CLOSING" onDone={finishLogout} />}
+
       <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 sticky top-0 z-10">
         <div>
           <p className="text-xs text-slate-400 leading-none">Signed in as</p>
           <p className="font-semibold text-slate-800 leading-tight">{name}</p>
         </div>
         <button
-          onClick={logout}
+          onClick={handleLogoutClick}
+          disabled={checkingClosing}
           aria-label="Log out"
-          className="text-sm font-medium text-slate-500 px-3 py-2 rounded-xl hover:bg-slate-100"
+          className="text-sm font-medium text-slate-500 px-3 py-2 rounded-xl hover:bg-slate-100 disabled:opacity-50"
         >
           Log Out
         </button>

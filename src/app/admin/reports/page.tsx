@@ -35,6 +35,18 @@ interface Report {
   monthlySeries?: { label: string; liters: number; revenue: number; transactions: number }[];
 }
 
+interface MeterReadingInfo {
+  reading: number;
+  recordedAt: string;
+  recordedBy: { name: string };
+}
+
+interface MeterReadings {
+  opening: MeterReadingInfo | null;
+  closing: MeterReadingInfo | null;
+  meterDifference: number | null;
+}
+
 interface EmailLog {
   id: string;
   reportType: string;
@@ -49,13 +61,18 @@ interface EmailLog {
 export default function ReportsPage() {
   const [tab, setTab] = useState<Tab>("daily");
   const [report, setReport] = useState<Report | null>(null);
+  const [meterReadings, setMeterReadings] = useState<MeterReadings | null>(null);
   const [logs, setLogs] = useState<EmailLog[]>([]);
 
   useEffect(() => {
     setReport(null);
+    setMeterReadings(null);
     fetch(`/api/reports/${tab}`)
       .then((r) => r.json())
-      .then((d) => setReport(d.report));
+      .then((d) => {
+        setReport(d.report);
+        if (tab === "daily") setMeterReadings(d.meterReadings ?? null);
+      });
   }, [tab]);
 
   useEffect(() => {
@@ -130,6 +147,49 @@ export default function ReportsPage() {
               </p>
             )}
           </div>
+
+          {tab === "daily" && meterReadings && (
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
+              <h2 className="font-bold text-slate-700 text-sm mb-3">Vannmåler</h2>
+              {!meterReadings.opening && !meterReadings.closing && (
+                <p className="text-slate-400 text-sm">Ingen måleravlesninger registrert i dag ennå.</p>
+              )}
+              {(meterReadings.opening || meterReadings.closing) && (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Åpning</span>
+                    <span className="font-semibold text-slate-800">
+                      {meterReadings.opening
+                        ? `${meterReadings.opening.reading.toLocaleString("en-LK")} m³ · ${meterReadings.opening.recordedBy.name}`
+                        : "Ikke registrert"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Slutt</span>
+                    <span className="font-semibold text-slate-800">
+                      {meterReadings.closing
+                        ? `${meterReadings.closing.reading.toLocaleString("en-LK")} m³ · ${meterReadings.closing.recordedBy.name}`
+                        : "Ikke registrert"}
+                    </span>
+                  </div>
+                  {meterReadings.meterDifference !== null && (
+                    <div className="flex justify-between pt-2 border-t border-slate-100">
+                      <span className="text-slate-500">Målerdifferanse</span>
+                      <span className="font-bold text-slate-800">
+                        {(meterReadings.meterDifference * 1000).toLocaleString("en-LK")} L
+                      </span>
+                    </div>
+                  )}
+                  {meterReadings.meterDifference !== null && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Registrert solgt (salg)</span>
+                      <span className="font-semibold text-slate-800">{formatLiters(report.summary.liters)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {report.paymentBreakdown && (
             <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">

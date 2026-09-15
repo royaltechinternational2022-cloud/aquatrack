@@ -130,6 +130,11 @@ export function formatBusiness(date: Date, fmt: string): string {
   return formatInTimeZone(date, APP_TIMEZONE, fmt);
 }
 
+/** "yyyy-MM-dd" key for the current business day in Asia/Colombo — used to key one-per-day records. */
+export function getBusinessDateKey(reference: Date = new Date()): string {
+  return formatBusiness(reference, "yyyy-MM-dd");
+}
+
 export function nowInBusinessTime(): Date {
   return toZonedTime(new Date(), APP_TIMEZONE);
 }

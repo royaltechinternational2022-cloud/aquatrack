@@ -40,6 +40,11 @@ enum SaleStatus {
   CORRECTED
 }
 
+enum MeterReadingType {
+  OPENING
+  CLOSING
+}
+
 model User {
   id           String     @id @default(cuid())
   name         String
@@ -55,6 +60,7 @@ model User {
   sales          Sale[]           @relation("EmployeeSales")
   auditLogs      AuditLog[]       @relation("AuditActor")
   pricingChanges PricingSetting[] @relation("PricingUpdater")
+  meterReadings  MeterReading[]   @relation("MeterReadingRecorder")
 }
 
 model Sale {
@@ -78,6 +84,22 @@ model Sale {
 
   @@index([transactionDate])
   @@index([employeeId])
+}
+
+// One OPENING reading and one CLOSING reading per business day (Asia/Colombo).
+// The first employee to log in each day is required to record OPENING before
+// using the app; whoever logs out while no CLOSING exists yet for today is
+// required to record it before the logout completes.
+model MeterReading {
+  id           String           @id @default(cuid())
+  businessDate String // "yyyy-MM-dd" in Asia/Colombo
+  type         MeterReadingType
+  reading      Float
+  recordedById String
+  recordedBy   User             @relation("MeterReadingRecorder", fields: [recordedById], references: [id])
+  recordedAt   DateTime         @default(now())
+
+  @@unique([businessDate, type])
 }
 
 model PricingSetting {
