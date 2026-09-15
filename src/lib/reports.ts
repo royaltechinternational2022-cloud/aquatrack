@@ -85,6 +85,9 @@ export interface MeterDiscrepancyForEmail {
   meterLiters: number | null;
   expectedRevenue: number | null;
   actualRevenue: number;
+  referencePricePerLiter: number;
+  opening: { reading: number; recordedBy: string } | null;
+  closing: { reading: number; recordedBy: string } | null;
 }
 
 export function renderReportEmailHtml(
@@ -143,6 +146,52 @@ export function renderReportEmailHtml(
         Previous period: ${liters(data.previousSummary.liters)} / ${money(data.previousSummary.revenue)}<br/>
         Growth: ${growthLine(data.revenueGrowthPct)}
       </p>
+
+      ${
+        meterDiscrepancy && (meterDiscrepancy.opening || meterDiscrepancy.closing)
+          ? `<h3 style="font-size:14px;color:#334155;margin-top:24px;">Vannmåler</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr>
+                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Åpning</td>
+                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${
+                  meterDiscrepancy.opening
+                    ? `${meterDiscrepancy.opening.reading.toLocaleString("en-LK")} m³ · ${meterDiscrepancy.opening.recordedBy}`
+                    : "Ikke registrert"
+                }</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Slutt</td>
+                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${
+                  meterDiscrepancy.closing
+                    ? `${meterDiscrepancy.closing.reading.toLocaleString("en-LK")} m³ · ${meterDiscrepancy.closing.recordedBy}`
+                    : "Ikke registrert"
+                }</td>
+              </tr>
+              ${
+                meterDiscrepancy.meterLiters !== null
+                  ? `<tr>
+                      <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Målerdifferanse</td>
+                      <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;">${liters(
+                        meterDiscrepancy.meterLiters
+                      )}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Forventet inntekt (à Rs. ${
+                        meterDiscrepancy.referencePricePerLiter
+                      }/L)</td>
+                      <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${money(
+                        meterDiscrepancy.expectedRevenue ?? 0
+                      )}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 12px;">Registrert inntekt (salg)</td>
+                      <td style="padding:6px 12px;text-align:right;">${money(meterDiscrepancy.actualRevenue)}</td>
+                    </tr>`
+                  : ""
+              }
+            </table>`
+          : ""
+      }
 
       <h3 style="font-size:14px;color:#334155;margin-top:24px;">Payment Breakdown</h3>
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
