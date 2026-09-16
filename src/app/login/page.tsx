@@ -83,6 +83,8 @@ export default function LoginPage() {
             {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
+
+        <p className="text-center text-cyan-100/70 text-xs mt-6">Designed by RoyalTech</p>
       </div>
     </div>
   );
