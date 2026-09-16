@@ -16,7 +16,7 @@ export default function EmployeeShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [checkingClosing, setCheckingClosing] = useState(false);
+  const [checkingEndDay, setCheckingEndDay] = useState(false);
   const [showClosingGate, setShowClosingGate] = useState(false);
 
   async function finishLogout() {
@@ -25,20 +25,29 @@ export default function EmployeeShell({
     router.refresh();
   }
 
+  // Plain logout: no meter prompt. Employees may log in/out several times a
+  // day (lunch, a dropped session) without being asked for a closing reading
+  // each time — that's now a deliberate, separate action below.
   async function handleLogoutClick() {
-    setCheckingClosing(true);
+    await finishLogout();
+  }
+
+  // "Avslutt dagen": the deliberate end-of-day action. Only this prompts for
+  // the closing meter reading (skipped if someone already recorded it today).
+  async function handleEndDayClick() {
+    setCheckingEndDay(true);
     try {
       const res = await fetch("/api/meter-readings");
       const data = await res.json();
       if (!data.closing) {
         setShowClosingGate(true);
-        setCheckingClosing(false);
+        setCheckingEndDay(false);
         return;
       }
     } catch {
-      // If we can't check, don't block logout on a connection hiccup.
+      // If we can't check, don't block ending the day on a connection hiccup.
     }
-    setCheckingClosing(false);
+    setCheckingEndDay(false);
     await finishLogout();
   }
 
@@ -50,19 +59,27 @@ export default function EmployeeShell({
     <div className="min-h-screen flex flex-col bg-slate-50">
       {showClosingGate && <MeterReadingGate type="CLOSING" onDone={finishLogout} />}
 
-      <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 sticky top-0 z-10">
-        <div>
+      <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 sticky top-0 z-10 gap-2">
+        <div className="min-w-0">
           <p className="text-xs text-slate-400 leading-none">Signed in as</p>
-          <p className="font-semibold text-slate-800 leading-tight">{name}</p>
+          <p className="font-semibold text-slate-800 leading-tight truncate">{name}</p>
         </div>
-        <button
-          onClick={handleLogoutClick}
-          disabled={checkingClosing}
-          aria-label="Log out"
-          className="text-sm font-medium text-slate-500 px-3 py-2 rounded-xl hover:bg-slate-100 disabled:opacity-50"
-        >
-          Log Out
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={handleEndDayClick}
+            disabled={checkingEndDay}
+            className="text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-2 rounded-xl hover:bg-amber-100 disabled:opacity-50"
+          >
+            Avslutt dagen
+          </button>
+          <button
+            onClick={handleLogoutClick}
+            aria-label="Log out"
+            className="text-sm font-medium text-slate-500 px-3 py-2 rounded-xl hover:bg-slate-100"
+          >
+            Log Out
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col">{children}</main>
