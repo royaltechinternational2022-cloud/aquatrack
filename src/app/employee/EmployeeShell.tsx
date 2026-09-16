@@ -32,7 +32,7 @@ export default function EmployeeShell({
     await finishLogout();
   }
 
-  // "Avslutt dagen": the deliberate end-of-day action. Only this prompts for
+  // "End Day": the deliberate end-of-day action. Only this prompts for
   // the closing meter reading (skipped if someone already recorded it today).
   async function handleEndDayClick() {
     setCheckingEndDay(true);
@@ -70,7 +70,7 @@ export default function EmployeeShell({
             disabled={checkingEndDay}
             className="text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-2 rounded-xl hover:bg-amber-100 disabled:opacity-50"
           >
-            Avslutt dagen
+            End Day
           </button>
           <button
             onClick={handleLogoutClick}

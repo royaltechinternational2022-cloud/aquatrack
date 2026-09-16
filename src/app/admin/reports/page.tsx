@@ -150,52 +150,52 @@ export default function ReportsPage() {
 
           {tab === "daily" && meterDiscrepancy && (
             <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
-              <h2 className="font-bold text-slate-700 text-sm mb-3">Vannmåler</h2>
+              <h2 className="font-bold text-slate-700 text-sm mb-3">Water Meter</h2>
               {!meterDiscrepancy.opening && !meterDiscrepancy.closing && (
-                <p className="text-slate-400 text-sm">Ingen måleravlesninger registrert i dag ennå.</p>
+                <p className="text-slate-400 text-sm">No meter readings recorded today yet.</p>
               )}
               {(meterDiscrepancy.opening || meterDiscrepancy.closing) && (
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Åpning</span>
+                    <span className="text-slate-500">Opening</span>
                     <span className="font-semibold text-slate-800">
                       {meterDiscrepancy.opening
                         ? `${meterDiscrepancy.opening.reading.toLocaleString("en-LK")} m³ · ${meterDiscrepancy.opening.recordedBy}`
-                        : "Ikke registrert"}
+                        : "Not recorded"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Slutt</span>
+                    <span className="text-slate-500">Closing</span>
                     <span className="font-semibold text-slate-800">
                       {meterDiscrepancy.closing
                         ? `${meterDiscrepancy.closing.reading.toLocaleString("en-LK")} m³ · ${meterDiscrepancy.closing.recordedBy}`
-                        : "Ikke registrert"}
+                        : "Not recorded"}
                     </span>
                   </div>
                   {meterDiscrepancy.meterLiters !== null && (
                     <>
                       <div className="flex justify-between pt-2 border-t border-slate-100">
-                        <span className="text-slate-500">Målerdifferanse</span>
+                        <span className="text-slate-500">Meter Difference</span>
                         <span className="font-bold text-slate-800">{formatLiters(meterDiscrepancy.meterLiters)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-500">
-                          Forventet inntekt (à Rs. {meterDiscrepancy.referencePricePerLiter}/L)
+                          Expected Revenue (at Rs. {meterDiscrepancy.referencePricePerLiter}/L)
                         </span>
                         <span className="font-semibold text-slate-800">
                           {formatMoney(meterDiscrepancy.expectedRevenue ?? 0)}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Registrert inntekt (salg)</span>
+                        <span className="text-slate-500">Recorded Revenue (sales)</span>
                         <span className="font-semibold text-slate-800">
                           {formatMoney(meterDiscrepancy.actualRevenue)}
                         </span>
                       </div>
                       {meterDiscrepancy.isBigDeviation && (
                         <div className="rounded-xl bg-red-50 border border-red-100 px-3 py-2.5 mt-2 text-red-700">
-                          ⚠ Avvik på {meterDiscrepancy.deviationPct?.toFixed(0)}% mellom målerstand og registrert
-                          salg (terskel: {meterDiscrepancy.thresholdPct}%).
+                          ⚠ {meterDiscrepancy.deviationPct?.toFixed(0)}% deviation between meter reading and
+                          recorded sales (threshold: {meterDiscrepancy.thresholdPct}%).
                         </div>
                       )}
                     </>

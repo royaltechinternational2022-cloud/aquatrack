@@ -182,13 +182,13 @@ function MeterAlertSection() {
 
   return (
     <form onSubmit={save} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-4">
-      <h2 className="font-bold text-slate-700 text-sm">Vannmåler-varsel</h2>
+      <h2 className="font-bold text-slate-700 text-sm">Water Meter Alert</h2>
       <p className="text-xs text-slate-400">
-        Sammenligner målerdifferanse (til referansepris) mot registrert salg hver dag. Ved stort avvik får eier
-        varsel i den daglige e-postrapporten.
+        Compares the meter difference (at a reference price) against recorded sales every day. If the deviation is
+        large, the owner gets a warning in the daily email report.
       </p>
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Referansepris per liter (Rs.)</label>
+        <label className="block text-xs text-slate-400 mb-1">Reference price per liter (Rs.)</label>
         <input
           type="number"
           step="0.01"
@@ -199,7 +199,7 @@ function MeterAlertSection() {
         />
       </div>
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Varsle ved avvik større enn (%)</label>
+        <label className="block text-xs text-slate-400 mb-1">Alert when deviation exceeds (%)</label>
         <input
           type="number"
           step="1"

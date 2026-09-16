@@ -10,16 +10,16 @@ interface MeterReadingGateProps {
 
 const COPY = {
   OPENING: {
-    title: "God morgen!",
-    subtitle: "Registrer målerstanden på vannmåleren før du starter dagen.",
-    label: "ÅPNINGSMÅLING",
-    confirm: "START DAGEN",
+    title: "Good morning!",
+    subtitle: "Record the water meter reading before you start the day.",
+    label: "OPENING READING",
+    confirm: "START DAY",
   },
   CLOSING: {
-    title: "Avslutter dagen?",
-    subtitle: "Ingen har registrert sluttmåling for i dag ennå. Skriv inn målerstanden før du logger ut.",
-    label: "SLUTTMÅLING",
-    confirm: "LOGG UT",
+    title: "Ending the day?",
+    subtitle: "No one has recorded a closing reading yet today. Enter the meter reading before you log out.",
+    label: "CLOSING READING",
+    confirm: "LOG OUT",
   },
 };
 
@@ -42,13 +42,13 @@ export default function MeterReadingGate({ type, onDone }: MeterReadingGateProps
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Kunne ikke lagre målingen. Prøv igjen.");
+        setError(data.error ?? "Could not save the reading. Please try again.");
         setSaving(false);
         return;
       }
       onDone();
     } catch {
-      setError("Ingen forbindelse. Prøv igjen.");
+      setError("No connection. Please try again.");
       setSaving(false);
     }
   }
@@ -81,7 +81,7 @@ export default function MeterReadingGate({ type, onDone }: MeterReadingGateProps
             disabled={!value || parseFloat(value) < 0 || saving}
             className="w-full rounded-2xl bg-cyan-600 disabled:opacity-40 text-white text-lg font-bold py-4 active:scale-[0.98] transition"
           >
-            {saving ? "Lagrer…" : copy.confirm}
+            {saving ? "Saving…" : copy.confirm}
           </button>
         </div>
       </div>

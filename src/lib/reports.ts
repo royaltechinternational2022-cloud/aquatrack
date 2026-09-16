@@ -117,12 +117,12 @@ export function renderReportEmailHtml(
       ${
         meterDiscrepancy?.isBigDeviation
           ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin-bottom:24px;">
-              <p style="margin:0 0 4px;font-weight:700;color:#b91c1c;font-size:14px;">⚠ Avvik mellom vannmåler og registrert salg</p>
+              <p style="margin:0 0 4px;font-weight:700;color:#b91c1c;font-size:14px;">⚠ Deviation between water meter and recorded sales</p>
               <p style="margin:0;font-size:13px;color:#7f1d1d;">
-                Målerdifferanse: ${liters(meterDiscrepancy.meterLiters ?? 0)} (forventet ${money(
+                Meter difference: ${liters(meterDiscrepancy.meterLiters ?? 0)} (expected ${money(
               meterDiscrepancy.expectedRevenue ?? 0
-            )}) vs. registrert salg ${money(meterDiscrepancy.actualRevenue)} —
-                ${meterDiscrepancy.deviationPct?.toFixed(0)}% avvik (terskel ${meterDiscrepancy.thresholdPct}%).
+            )}) vs. recorded sales ${money(meterDiscrepancy.actualRevenue)} —
+                ${meterDiscrepancy.deviationPct?.toFixed(0)}% deviation (threshold ${meterDiscrepancy.thresholdPct}%).
               </p>
             </div>`
           : ""
@@ -149,34 +149,34 @@ export function renderReportEmailHtml(
 
       ${
         meterDiscrepancy && (meterDiscrepancy.opening || meterDiscrepancy.closing)
-          ? `<h3 style="font-size:14px;color:#334155;margin-top:24px;">Vannmåler</h3>
+          ? `<h3 style="font-size:14px;color:#334155;margin-top:24px;">Water Meter</h3>
             <table style="width:100%;border-collapse:collapse;font-size:14px;">
               <tr>
-                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Åpning</td>
+                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Opening</td>
                 <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${
                   meterDiscrepancy.opening
                     ? `${meterDiscrepancy.opening.reading.toLocaleString("en-LK")} m³ · ${meterDiscrepancy.opening.recordedBy}`
-                    : "Ikke registrert"
+                    : "Not recorded"
                 }</td>
               </tr>
               <tr>
-                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Slutt</td>
+                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Closing</td>
                 <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${
                   meterDiscrepancy.closing
                     ? `${meterDiscrepancy.closing.reading.toLocaleString("en-LK")} m³ · ${meterDiscrepancy.closing.recordedBy}`
-                    : "Ikke registrert"
+                    : "Not recorded"
                 }</td>
               </tr>
               ${
                 meterDiscrepancy.meterLiters !== null
                   ? `<tr>
-                      <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Målerdifferanse</td>
+                      <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Meter Difference</td>
                       <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;">${liters(
                         meterDiscrepancy.meterLiters
                       )}</td>
                     </tr>
                     <tr>
-                      <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Forventet inntekt (à Rs. ${
+                      <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">Expected Revenue (at Rs. ${
                         meterDiscrepancy.referencePricePerLiter
                       }/L)</td>
                       <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${money(
@@ -184,7 +184,7 @@ export function renderReportEmailHtml(
                       )}</td>
                     </tr>
                     <tr>
-                      <td style="padding:6px 12px;">Registrert inntekt (salg)</td>
+                      <td style="padding:6px 12px;">Recorded Revenue (sales)</td>
                       <td style="padding:6px 12px;text-align:right;">${money(meterDiscrepancy.actualRevenue)}</td>
                     </tr>`
                   : ""

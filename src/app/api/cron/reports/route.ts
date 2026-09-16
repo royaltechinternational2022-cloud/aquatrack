@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       reportType: "DAILY",
       reportPeriod: report.reportPeriodKey,
       recipients,
-      subject: `Daily Water Sales Report – ${report.periodLabel}${meterDiscrepancy.isBigDeviation ? " ⚠ AVVIK" : ""}`,
+      subject: `Daily Water Sales Report – ${report.periodLabel}${meterDiscrepancy.isBigDeviation ? " ⚠ DEVIATION" : ""}`,
       html: renderReportEmailHtml("Daily Water Sales Report", report, meterDiscrepancy),
     });
     results.push(`DAILY:${report.reportPeriodKey}`);
