@@ -48,17 +48,29 @@ No App Store / Play Store listing needed. Icons and manifest live in
 
 ## Automatic email reports
 
-Report delivery is driven by `POST /api/cron/reports`, guarded by the
-`CRON_SECRET` header (`x-cron-secret`). It's idempotent — call it as often as
-you like (every 5–15 minutes is plenty); it only sends once per
-(report type, period, recipient) and retries failed sends automatically,
-logging every attempt to the `EmailLog` table (visible under **Reports** in
-the admin app).
+Report delivery is driven by `/api/cron/reports`. It's idempotent — safe to
+call as often as you like; it only sends once per (report type, period,
+recipient) and retries failed sends automatically, logging every attempt to
+the `EmailLog` table (visible under **Reports** in the admin app).
 
-Two ways to drive it:
+On Vercel, `vercel.json` already wires this up automatically: a Vercel Cron
+job hits `GET /api/cron/reports` once a day (see the `crons` entry there —
+currently `5 16 * * *` UTC, i.e. 21:35 Asia/Colombo, five minutes after the
+default 21:30 daily send time configured in the app). Vercel authenticates
+that request itself using the `CRON_SECRET` env var (sent as
+`Authorization: Bearer $CRON_SECRET`) — no extra setup needed beyond having
+that env var set.
 
-1. **Platform cron** (e.g. Vercel Cron) — point it at `POST /api/cron/reports`
-   with the `x-cron-secret` header set to your `CRON_SECRET`.
+**Hobby-plan note**: Vercel's free tier only allows one cron firing per day,
+and the exact time can drift by up to an hour. If you change the daily send
+time in Settings to something *later* than the cron schedule in
+`vercel.json`, update the cron schedule too (and redeploy) so it still fires
+after your new time — otherwise that day's report is skipped and goes out
+on the next day's cron run instead.
+
+Two other ways to trigger it manually if needed:
+
+1. **`POST /api/cron/reports`** with header `x-cron-secret: $CRON_SECRET` (e.g. via curl) — useful for testing.
 2. **Your own scheduler** — run `npm run cron:reports` on an interval (system
    crontab, pm2, etc.) with `APP_URL` and `CRON_SECRET` set in the environment.
 

@@ -7,23 +7,18 @@ import { getMeterDiscrepancy } from "@/lib/meter";
 import { addDays } from "date-fns";
 
 /**
- * Meant to be invoked by an external scheduler (Vercel Cron, cron-job.org,
- * node-cron, etc.) every few minutes. It is idempotent: sendReportEmail skips
- * any (reportType, reportPeriod, recipient) that already has a SENT log, so
- * calling this too often just no-ops after the first successful send per
- * period, and a failed send is retried on the next invocation.
+ * Shared logic, invoked either by Vercel Cron (GET, see vercel.json) or
+ * manually/by an external scheduler (POST). Idempotent: sendReportEmail
+ * skips any (reportType, reportPeriod, recipient) that already has a SENT
+ * log, so calling this too often just no-ops after the first successful
+ * send per period, and a failed send is retried on the next invocation.
  */
-export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret");
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+async function runReportCheck() {
   const settings = await prisma.reportSettings.findUnique({ where: { id: "singleton" } });
-  if (!settings) return NextResponse.json({ sent: [] });
+  if (!settings) return { checked: [], reason: "No report settings configured" };
 
   const recipients = (JSON.parse(settings.recipientEmails) as string[]).filter(Boolean);
-  if (recipients.length === 0) return NextResponse.json({ sent: [], reason: "No recipients configured" });
+  if (recipients.length === 0) return { checked: [], reason: "No recipients configured" };
 
   const now = new Date();
   const currentHHmm = formatBusiness(now, "HH:mm");
@@ -69,5 +64,23 @@ export async function POST(req: NextRequest) {
     results.push(`MONTHLY:${report.reportPeriodKey}`);
   }
 
-  return NextResponse.json({ checked: results, timezone: settings.timezone, now: currentHHmm });
+  return { checked: results, timezone: settings.timezone, now: currentHHmm };
+}
+
+/** Vercel Cron invokes this automatically (see vercel.json) with a Bearer token. */
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json(await runReportCheck());
+}
+
+/** Manual/external trigger (e.g. a different scheduler, or testing via curl). */
+export async function POST(req: NextRequest) {
+  const secret = req.headers.get("x-cron-secret");
+  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json(await runReportCheck());
 }
