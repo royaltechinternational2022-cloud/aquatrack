@@ -63,10 +63,13 @@ export default function ReportsPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [meterDiscrepancy, setMeterDiscrepancy] = useState<MeterDiscrepancy | null>(null);
   const [logs, setLogs] = useState<EmailLog[]>([]);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setReport(null);
     setMeterDiscrepancy(null);
+    setSendResult(null);
     fetch(`/api/reports/${tab}`)
       .then((r) => r.json())
       .then((d) => {
@@ -75,11 +78,38 @@ export default function ReportsPage() {
       });
   }, [tab]);
 
-  useEffect(() => {
+  function loadLogs() {
     fetch("/api/email-logs")
       .then((r) => r.json())
       .then((d) => setLogs(d.logs));
-  }, []);
+  }
+
+  useEffect(loadLogs, []);
+
+  async function sendNow() {
+    if (tab === "yearly") return;
+    setSending(true);
+    setSendResult(null);
+    try {
+      const res = await fetch("/api/reports/send-now", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: tab }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSendResult({ ok: false, message: data.error ?? "Could not send the report." });
+      } else if (data.sent) {
+        setSendResult({ ok: true, message: "Report sent." });
+      } else {
+        setSendResult({ ok: false, message: "Send failed — check Automatic Email Delivery below for details." });
+      }
+    } catch {
+      setSendResult({ ok: false, message: "Connection lost — please try again." });
+    }
+    setSending(false);
+    loadLogs();
+  }
 
   return (
     <div className="px-5 py-6 max-w-2xl mx-auto w-full space-y-5">
@@ -98,6 +128,23 @@ export default function ReportsPage() {
           </button>
         ))}
       </div>
+
+      {tab !== "yearly" && (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={sendNow}
+            disabled={sending}
+            className="rounded-xl bg-cyan-600 text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
+          >
+            {sending ? "Sending…" : "Send Report Now"}
+          </button>
+          {sendResult && (
+            <span className={`text-sm ${sendResult.ok ? "text-emerald-600" : "text-red-600"}`}>
+              {sendResult.message}
+            </span>
+          )}
+        </div>
+      )}
 
       {!report && <p className="text-slate-400 text-sm">Loading…</p>}
 

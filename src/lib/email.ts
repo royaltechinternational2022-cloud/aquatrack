@@ -25,6 +25,8 @@ export interface SendReportEmailInput {
   recipients: string[];
   subject: string;
   html: string;
+  /** Send even if this (type, period, recipient) already has a SENT log — used for an admin-triggered manual resend. */
+  force?: boolean;
 }
 
 /** Sends the report to every recipient and writes one EmailLog row per recipient. */
@@ -33,15 +35,17 @@ export async function sendReportEmail(input: SendReportEmailInput) {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || "reports@example.com";
 
   for (const recipient of input.recipients) {
-    const existing = await prisma.emailLog.findFirst({
-      where: {
-        reportType: input.reportType,
-        reportPeriod: input.reportPeriod,
-        recipient,
-        status: "SENT",
-      },
-    });
-    if (existing) continue; // already sent successfully — avoid duplicate sends
+    if (!input.force) {
+      const existing = await prisma.emailLog.findFirst({
+        where: {
+          reportType: input.reportType,
+          reportPeriod: input.reportPeriod,
+          recipient,
+          status: "SENT",
+        },
+      });
+      if (existing) continue; // already sent successfully — avoid duplicate sends
+    }
 
     try {
       if (!transport) {
