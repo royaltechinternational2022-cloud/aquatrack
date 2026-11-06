@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { formatMoney, formatLiters, paymentLabel, formatAdminDateTime } from "@/lib/format";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Sale {
   id: string;
@@ -37,17 +37,24 @@ function csvCell(value: string | number): string {
 }
 
 export default function TransactionsPage() {
+  return (
+    <Suspense>
+      <TransactionsList />
+    </Suspense>
+  );
+}
+
+function TransactionsList() {
+  // Filters live in the URL so Back from a transaction returns to the same list.
+  const initial = useSearchParams();
   const [sales, setSales] = useState<Sale[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [period, setPeriod] = useState("today");
-  const [employeeId, setEmployeeId] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("");
-  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(Math.max(1, Number(initial.get("page")) || 1));
+  const [period, setPeriod] = useState(initial.get("period") ?? "today");
+  const [employeeId, setEmployeeId] = useState(initial.get("employeeId") ?? "");
+  const [paymentMethod, setPaymentMethod] = useState(initial.get("paymentMethod") ?? "");
+  const [search, setSearch] = useState(initial.get("search") ?? "");
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [deleting, setDeleting] = useState<Sale | null>(null);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const pageSize = 20;
 
@@ -76,35 +83,24 @@ export default function TransactionsPage() {
       .then((d) => {
         setSales(d.sales);
         setTotal(d.total);
+        // Deleting the only row on the last page leaves this page empty on return.
+        if (d.sales.length === 0 && d.total > 0) setPage(Math.ceil(d.total / pageSize));
       });
   }, [buildFilters, page]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [period, employeeId, paymentMethod, search]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  useEffect(() => {
+    const params = buildFilters();
+    // "All" sends no period to the API, but must stay distinct from the default here.
+    if (!period) params.set("period", "");
+    if (page > 1) params.set("page", String(page));
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  }, [buildFilters, period, page]);
 
-  async function confirmDelete() {
-    if (!deleting) return;
-    setDeleteBusy(true);
-    setDeleteError(null);
-    const res = await fetch(`/api/sales/${deleting.id}`, { method: "DELETE" });
-    setDeleteBusy(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setDeleteError(data?.error ?? "Could not delete this transaction.");
-      return;
-    }
-    setDeleting(null);
-    // Removing the only row on the last page would otherwise show an empty page.
-    if (sales.length === 1 && page > 1) setPage(page - 1);
-    else load();
-  }
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   async function exportCsv() {
     setExporting(true);
@@ -162,7 +158,10 @@ export default function TransactionsPage() {
 
       <input
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
         placeholder="Search by transaction ID (e.g. WS1054)"
         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-cyan-500"
       />
@@ -171,7 +170,10 @@ export default function TransactionsPage() {
         {PERIODS.map((p) => (
           <button
             key={p.key}
-            onClick={() => setPeriod(p.key)}
+            onClick={() => {
+              setPeriod(p.key);
+              setPage(1);
+            }}
             className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold ${
               period === p.key ? "bg-cyan-600 text-white" : "bg-white border border-slate-200 text-slate-500"
             }`}
@@ -184,7 +186,10 @@ export default function TransactionsPage() {
       <div className="flex gap-2">
         <select
           value={employeeId}
-          onChange={(e) => setEmployeeId(e.target.value)}
+          onChange={(e) => {
+            setEmployeeId(e.target.value);
+            setPage(1);
+          }}
           className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
         >
           <option value="">All employees</option>
@@ -196,7 +201,10 @@ export default function TransactionsPage() {
         </select>
         <select
           value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
+          onChange={(e) => {
+            setPaymentMethod(e.target.value);
+            setPage(1);
+          }}
           className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
         >
           <option value="">All payments</option>
@@ -210,9 +218,13 @@ export default function TransactionsPage() {
       <div className="space-y-2">
         {sales.length === 0 && <p className="text-slate-400 text-sm py-8 text-center">No transactions found.</p>}
         {sales.map((sale) => (
-          <div key={sale.id} className="rounded-2xl bg-white border border-slate-100 shadow-sm">
-            <Link href={`/admin/transactions/${sale.id}`} className="flex items-center justify-between p-4">
-              <div>
+          <Link
+            key={sale.id}
+            href={`/admin/transactions/${sale.id}`}
+            className="flex items-center gap-3 rounded-2xl bg-white border border-slate-100 shadow-sm p-4 transition-colors hover:bg-slate-50 active:bg-slate-100"
+          >
+            <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="font-bold text-slate-800 text-sm">
                   #{sale.transactionNumber}
                   {sale.status === "CORRECTED" && (
@@ -230,7 +242,7 @@ export default function TransactionsPage() {
                   {sale.employee.name} · {formatAdminDateTime(sale.transactionDate)}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="shrink-0 text-right">
                 <p className="font-bold text-cyan-700">
                   {sale.amount === 0 ? (
                     <span className="text-amber-600">FREE</span>
@@ -242,41 +254,11 @@ export default function TransactionsPage() {
                   {formatLiters(sale.liters)} · {paymentLabel(sale.paymentMethod)}
                 </p>
               </div>
-            </Link>
-            <div className="flex border-t border-slate-100 text-xs font-semibold">
-              <Link href={`/admin/transactions/${sale.id}?edit=1`} className="flex-1 py-2.5 text-center text-slate-600">
-                Edit
-              </Link>
-              <button
-                onClick={() => {
-                  setDeleteError(null);
-                  setDeleting(sale);
-                }}
-                className="flex-1 py-2.5 border-l border-slate-100 text-red-600"
-              >
-                Delete
-              </button>
             </div>
-          </div>
+            <span className="text-slate-300" aria-hidden="true">›</span>
+          </Link>
         ))}
       </div>
-
-      {deleting && (
-        <ConfirmDialog
-          title={`Delete #${deleting.transactionNumber}?`}
-          confirmLabel="Delete"
-          busy={deleteBusy}
-          error={deleteError}
-          onConfirm={confirmDelete}
-          onCancel={() => setDeleting(null)}
-        >
-          <p>
-            {formatLiters(deleting.liters)} · {deleting.amount === 0 ? "FREE" : formatMoney(deleting.amount)} ·{" "}
-            {deleting.employee.name}
-          </p>
-          <p>This permanently removes the sale and its correction history, and updates the reports. It cannot be undone.</p>
-        </ConfirmDialog>
-      )}
 
       {total > pageSize && (
         <div className="flex items-center justify-between pt-2">

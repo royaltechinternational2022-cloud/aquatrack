@@ -28,18 +28,11 @@ interface Sale {
   auditLogs: AuditLog[];
 }
 
-export default function TransactionDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ edit?: string }>;
-}) {
+export default function TransactionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params);
-  const { edit } = usePromise(searchParams);
   const router = useRouter();
   const [sale, setSale] = useState<Sale | null>(null);
-  const [editing, setEditing] = useState(edit === "1");
+  const [editing, setEditing] = useState(false);
   const [liters, setLiters] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
@@ -102,7 +95,9 @@ export default function TransactionDetailPage({
       setDeleteError(data?.error ?? "Could not delete this transaction.");
       return;
     }
-    router.push("/admin/transactions");
+    // Back keeps the list's filters; a directly opened link has nothing to go back to.
+    if (window.history.length > 1) router.back();
+    else router.push("/admin/transactions");
   }
 
   if (!sale) {

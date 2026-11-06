@@ -44,6 +44,25 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const [detailsMsg, setDetailsMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [savingDetails, setSavingDetails] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [openForm, setOpenForm] = useState<"details" | "password" | null>(null);
+
+  function toggleForm(form: "details" | "password") {
+    setDetailsMsg(null);
+    setResetMsg(null);
+    setNewPassword("");
+    if (employee) {
+      setEditName(employee.name);
+      setEditUsername(employee.username);
+      setEditEmail(employee.email ?? "");
+    }
+    setOpenForm((current) => (current === form ? null : form));
+  }
+
+  function returnToTeam() {
+    // Back keeps the list's filters; a directly opened link has nothing to go back to.
+    if (window.history.length > 1) router.back();
+    else router.push("/admin/employees");
+  }
 
   function load() {
     fetch(`/api/employees/${id}`)
@@ -168,86 +187,96 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      <form onSubmit={saveDetails} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-3">
-        <h2 className="font-bold text-slate-700 text-sm">Edit Details</h2>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">Full name</label>
-          <input
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            required
-            minLength={2}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">Username</label>
-          <input
-            value={editUsername}
-            onChange={(e) => setEditUsername(e.target.value)}
-            required
-            minLength={3}
-            autoCapitalize="none"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">Email (optional)</label>
-          <input
-            type="email"
-            value={editEmail}
-            onChange={(e) => setEditEmail(e.target.value)}
-            autoCapitalize="none"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-          />
-        </div>
-        {detailsMsg && (
-          <p className={`text-sm ${detailsMsg.ok ? "text-emerald-600" : "text-red-600"}`}>{detailsMsg.text}</p>
-        )}
-        <button
-          type="submit"
-          disabled={savingDetails}
-          className="w-full rounded-xl bg-cyan-600 text-white text-sm font-semibold py-3 disabled:opacity-60"
-        >
-          {savingDetails ? "Saving…" : "Save Details"}
-        </button>
-      </form>
+      <section className="space-y-2">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Manage Account</h2>
+        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm divide-y divide-slate-100 overflow-hidden">
+          <ActionRow label="Edit Details" expanded={openForm === "details"} onClick={() => toggleForm("details")} />
+          {openForm === "details" && (
+            <form onSubmit={saveDetails} className="p-4 space-y-3 bg-slate-50">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Full name</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                  minLength={2}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Username</label>
+                <input
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  required
+                  minLength={3}
+                  autoCapitalize="none"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Email (optional)</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  autoCapitalize="none"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
+                />
+              </div>
+              {detailsMsg && (
+                <p className={`text-sm ${detailsMsg.ok ? "text-emerald-600" : "text-red-600"}`}>{detailsMsg.text}</p>
+              )}
+              <button
+                type="submit"
+                disabled={savingDetails}
+                className="w-full rounded-xl bg-cyan-600 text-white text-sm font-semibold py-3 disabled:opacity-60"
+              >
+                {savingDetails ? "Saving…" : "Save Details"}
+              </button>
+            </form>
+          )}
 
-      {employee.role === "EMPLOYEE" && (
-        <button
-          onClick={toggleStatus}
-          className={`w-full rounded-2xl text-sm font-semibold py-3.5 ${
-            employee.status === "ACTIVE" ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
-          }`}
-        >
-          {employee.status === "ACTIVE" ? "Disable Account" : "Re-enable Account"}
-        </button>
-      )}
+          <ActionRow label="Reset Password" expanded={openForm === "password"} onClick={() => toggleForm("password")} />
+          {openForm === "password" && (
+            <form onSubmit={resetPassword} className="p-4 space-y-3 bg-slate-50">
+              <input
+                type="text"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+                placeholder="New password"
+                autoCapitalize="none"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
+              />
+              {resetMsg && <p className="text-sm text-slate-500">{resetMsg}</p>}
+              <button type="submit" className="w-full rounded-xl bg-slate-800 text-white text-sm font-semibold py-3">
+                Set New Password
+              </button>
+            </form>
+          )}
 
-      <form onSubmit={resetPassword} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-3">
-        <h2 className="font-bold text-slate-700 text-sm">Reset Password</h2>
-        <input
-          type="text"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          minLength={6}
-          placeholder="New password"
-          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-        />
-        {resetMsg && <p className="text-sm text-slate-500">{resetMsg}</p>}
-        <button type="submit" className="w-full rounded-xl bg-slate-800 text-white text-sm font-semibold py-3">
-          Set New Password
-        </button>
-      </form>
-
-      {employee.role === "EMPLOYEE" && (
-        <button
-          onClick={() => setRemoving(true)}
-          className="w-full rounded-2xl border border-red-200 text-red-600 text-sm font-semibold py-3.5"
-        >
-          Remove Employee
-        </button>
-      )}
+          {employee.role === "EMPLOYEE" && (
+            <>
+              <button
+                onClick={toggleStatus}
+                className={`w-full text-left px-4 py-3.5 text-sm font-semibold ${
+                  employee.status === "ACTIVE" ? "text-slate-700" : "text-emerald-700"
+                }`}
+              >
+                {employee.status === "ACTIVE" ? "Disable Account" : "Re-enable Account"}
+              </button>
+              <button
+                onClick={() => setRemoving(true)}
+                className="w-full text-left px-4 py-3.5 text-sm font-semibold text-red-600"
+              >
+                Remove Employee
+              </button>
+            </>
+          )}
+        </div>
+      </section>
 
       {removing && (
         <RemoveEmployeeDialog
@@ -255,12 +284,28 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           onClose={() => setRemoving(false)}
           onChanged={(result) => {
             setRemoving(false);
-            if (result === "removed") router.push("/admin/employees");
+            if (result === "removed") returnToTeam();
             else load();
           }}
         />
       )}
     </div>
+  );
+}
+
+function ActionRow({ label, expanded, onClick }: { label: string; expanded: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={expanded}
+      className="w-full flex items-center justify-between px-4 py-3.5 text-sm font-semibold text-slate-700"
+    >
+      {label}
+      <span className={`text-slate-300 transition-transform ${expanded ? "rotate-90" : ""}`} aria-hidden="true">
+        ›
+      </span>
+    </button>
   );
 }
 
