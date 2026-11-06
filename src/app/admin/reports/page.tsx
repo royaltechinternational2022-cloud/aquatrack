@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatMoney, formatLiters, paymentLabel } from "@/lib/format";
+import { EmailDeliveryCard, type EmailLog } from "./EmailDeliveryCard";
 
 type Tab = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -45,17 +46,6 @@ interface MeterDiscrepancy {
   deviationPct: number | null;
   thresholdPct: number;
   isBigDeviation: boolean;
-}
-
-interface EmailLog {
-  id: string;
-  reportType: string;
-  reportPeriod: string;
-  recipient: string;
-  status: string;
-  sentAt: string | null;
-  errorMessage: string | null;
-  createdAt: string;
 }
 
 export default function ReportsPage() {
@@ -299,26 +289,7 @@ export default function ReportsPage() {
         </>
       )}
 
-      <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
-        <h2 className="font-bold text-slate-700 text-sm mb-3">Automatic Email Delivery</h2>
-        {logs.length === 0 && <p className="text-slate-400 text-sm">No report emails sent yet.</p>}
-        <div className="space-y-2">
-          {logs.map((log) => (
-            <div key={log.id} className="flex items-center justify-between text-xs">
-              <span className="text-slate-500">
-                {log.reportType} · {log.reportPeriod} · {log.recipient}
-              </span>
-              <span
-                className={`font-semibold px-2 py-0.5 rounded-full ${
-                  log.status === "SENT" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
-                }`}
-              >
-                {log.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <EmailDeliveryCard logs={logs} />
     </div>
   );
 }

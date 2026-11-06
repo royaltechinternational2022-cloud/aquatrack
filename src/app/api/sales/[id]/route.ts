@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 const correctionSchema = z.object({
   liters: z.number().positive().optional(),
-  amount: z.number().positive().optional(),
+  amount: z.number().nonnegative().optional(), // 0 = free sale
   paymentMethod: z.enum(["CASH", "CARD", "BANK_TRANSFER", "OTHER"]).optional(),
   reason: z.string().min(3, "A reason is required for every correction"),
 });
@@ -58,6 +58,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     paymentMethod: existing.paymentMethod,
   };
   const newValues = { ...oldValues, ...changes };
+  if (
+    newValues.liters === oldValues.liters &&
+    newValues.amount === oldValues.amount &&
+    newValues.paymentMethod === oldValues.paymentMethod
+  ) {
+    return NextResponse.json({ error: "Nothing was changed" }, { status: 400 });
+  }
 
   const [sale] = await prisma.$transaction([
     prisma.sale.update({
@@ -76,4 +83,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   ]);
 
   return NextResponse.json({ sale });
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return NextResponse.json({ error: "Only admins can delete transactions" }, { status: 403 });
+  }
+  const { id } = await params;
+
+  const existing = await prisma.sale.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await prisma.$transaction([
+    prisma.auditLog.deleteMany({ where: { transactionId: id } }),
+    prisma.sale.delete({ where: { id } }),
+  ]);
+
+  return NextResponse.json({ deleted: true });
 }

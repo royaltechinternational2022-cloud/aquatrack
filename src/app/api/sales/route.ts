@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { isActiveUser } from "@/lib/activeUser";
 import { generateTransactionNumber } from "@/lib/transaction";
 import { checkPriceAnomaly, getActivePricingSetting } from "@/lib/pricing";
 import { getPeriodRange, type Period } from "@/lib/tz";
@@ -19,6 +20,9 @@ const createSchema = z.object({
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isActiveUser(session.sub))) {
+    return NextResponse.json({ error: "This account is no longer active" }, { status: 401 });
+  }
 
   const body = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);

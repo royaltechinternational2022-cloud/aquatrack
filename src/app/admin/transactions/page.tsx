@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { formatMoney, formatLiters, paymentLabel, formatAdminDateTime } from "@/lib/format";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Sale {
   id: string;
@@ -28,6 +29,13 @@ const PERIODS = [
   { key: "", label: "All" },
 ];
 
+function csvCell(value: string | number): string {
+  let text = String(value);
+  // Stop a spreadsheet from treating text such as an employee name as a formula.
+  if (typeof value === "string" && /^[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 export default function TransactionsPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [total, setTotal] = useState(0);
@@ -37,6 +45,10 @@ export default function TransactionsPage() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [search, setSearch] = useState("");
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [deleting, setDeleting] = useState<Sale | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const pageSize = 20;
 
   useEffect(() => {
@@ -45,12 +57,17 @@ export default function TransactionsPage() {
       .then((d) => setEmployees(d.employees.filter((e: { role: string }) => e.role === "EMPLOYEE")));
   }, []);
 
-  const load = useCallback(() => {
+  const buildFilters = useCallback(() => {
     const params = new URLSearchParams();
     if (period) params.set("period", period);
     if (employeeId) params.set("employeeId", employeeId);
     if (paymentMethod) params.set("paymentMethod", paymentMethod);
     if (search) params.set("search", search);
+    return params;
+  }, [period, employeeId, paymentMethod, search]);
+
+  const load = useCallback(() => {
+    const params = buildFilters();
     params.set("page", String(page));
     params.set("pageSize", String(pageSize));
 
@@ -60,7 +77,7 @@ export default function TransactionsPage() {
         setSales(d.sales);
         setTotal(d.total);
       });
-  }, [period, employeeId, paymentMethod, search, page]);
+  }, [buildFilters, page]);
 
   useEffect(() => {
     setPage(1);
@@ -72,11 +89,75 @@ export default function TransactionsPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    const res = await fetch(`/api/sales/${deleting.id}`, { method: "DELETE" });
+    setDeleteBusy(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setDeleteError(data?.error ?? "Could not delete this transaction.");
+      return;
+    }
+    setDeleting(null);
+    // Removing the only row on the last page would otherwise show an empty page.
+    if (sales.length === 1 && page > 1) setPage(page - 1);
+    else load();
+  }
+
+  async function exportCsv() {
+    setExporting(true);
+    const rows: Sale[] = [];
+    for (let p = 1; ; p++) {
+      const params = buildFilters();
+      params.set("page", String(p));
+      params.set("pageSize", "100");
+      const data = await fetch(`/api/sales?${params.toString()}`).then((r) => r.json());
+      rows.push(...data.sales);
+      if (rows.length >= data.total || data.sales.length === 0) break;
+    }
+    const header = ["Transaction", "Date (Norway time)", "Employee", "Liters", "Amount (Rs.)", "Payment", "Status", "Flagged"];
+    const lines = rows.map((s) =>
+      [
+        s.transactionNumber,
+        formatAdminDateTime(s.transactionDate),
+        s.employee.name,
+        s.liters,
+        s.amount,
+        paymentLabel(s.paymentMethod),
+        s.status === "CORRECTED" ? "Corrected" : "Completed",
+        s.flagged ? "Yes" : "No",
+      ]
+        .map(csvCell)
+        .join(",")
+    );
+    const blob = new Blob([[header.map(csvCell).join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setExporting(false);
+  }
+
   return (
     <div className="px-5 py-6 max-w-3xl mx-auto w-full space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">Transactions</h1>
-        <p className="text-slate-300 text-xs">Times shown in Norway time</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Transactions</h1>
+          <p className="text-slate-400 text-xs">
+            {total} found · Times shown in Norway time
+          </p>
+        </div>
+        <button
+          onClick={exportCsv}
+          disabled={exporting || total === 0}
+          className="text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-full px-4 py-2 disabled:opacity-50"
+        >
+          {exporting ? "Exporting…" : "Export CSV"}
+        </button>
       </div>
 
       <input
@@ -129,12 +210,8 @@ export default function TransactionsPage() {
       <div className="space-y-2">
         {sales.length === 0 && <p className="text-slate-400 text-sm py-8 text-center">No transactions found.</p>}
         {sales.map((sale) => (
-          <Link
-            key={sale.id}
-            href={`/admin/transactions/${sale.id}`}
-            className="block rounded-2xl bg-white border border-slate-100 shadow-sm p-4"
-          >
-            <div className="flex items-center justify-between">
+          <div key={sale.id} className="rounded-2xl bg-white border border-slate-100 shadow-sm">
+            <Link href={`/admin/transactions/${sale.id}`} className="flex items-center justify-between p-4">
               <div>
                 <p className="font-bold text-slate-800 text-sm">
                   #{sale.transactionNumber}
@@ -165,10 +242,41 @@ export default function TransactionsPage() {
                   {formatLiters(sale.liters)} · {paymentLabel(sale.paymentMethod)}
                 </p>
               </div>
+            </Link>
+            <div className="flex border-t border-slate-100 text-xs font-semibold">
+              <Link href={`/admin/transactions/${sale.id}?edit=1`} className="flex-1 py-2.5 text-center text-slate-600">
+                Edit
+              </Link>
+              <button
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleting(sale);
+                }}
+                className="flex-1 py-2.5 border-l border-slate-100 text-red-600"
+              >
+                Delete
+              </button>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
+
+      {deleting && (
+        <ConfirmDialog
+          title={`Delete #${deleting.transactionNumber}?`}
+          confirmLabel="Delete"
+          busy={deleteBusy}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        >
+          <p>
+            {formatLiters(deleting.liters)} · {deleting.amount === 0 ? "FREE" : formatMoney(deleting.amount)} ·{" "}
+            {deleting.employee.name}
+          </p>
+          <p>This permanently removes the sale and its correction history, and updates the reports. It cannot be undone.</p>
+        </ConfirmDialog>
+      )}
 
       {total > pageSize && (
         <div className="flex items-center justify-between pt-2">

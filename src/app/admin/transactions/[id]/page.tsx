@@ -3,6 +3,7 @@
 import { useEffect, useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney, formatLiters, paymentLabel, formatAdminDateTime } from "@/lib/format";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface AuditLog {
   id: string;
@@ -27,17 +28,27 @@ interface Sale {
   auditLogs: AuditLog[];
 }
 
-export default function TransactionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function TransactionDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string }>;
+}) {
   const { id } = usePromise(params);
+  const { edit } = usePromise(searchParams);
   const router = useRouter();
   const [sale, setSale] = useState<Sale | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(edit === "1");
   const [liters, setLiters] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   function load() {
     fetch(`/api/sales/${id}`)
@@ -81,6 +92,19 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
     load();
   }
 
+  async function deleteSale() {
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
+    setDeleting(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setDeleteError(data?.error ?? "Could not delete this transaction.");
+      return;
+    }
+    router.push("/admin/transactions");
+  }
+
   if (!sale) {
     return <div className="px-5 py-6 text-slate-400 text-sm">Loading…</div>;
   }
@@ -114,21 +138,30 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
       </div>
 
       {!editing ? (
-        <button
-          onClick={() => setEditing(true)}
-          className="w-full rounded-2xl bg-slate-800 text-white text-sm font-semibold py-3.5"
-        >
-          Correct This Transaction
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setEditing(true)}
+            className="flex-1 rounded-2xl bg-slate-800 text-white text-sm font-semibold py-3.5"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            className="flex-1 rounded-2xl border border-red-200 text-red-600 text-sm font-semibold py-3.5"
+          >
+            Delete
+          </button>
+        </div>
       ) : (
         <form onSubmit={submitCorrection} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-4">
-          <h2 className="font-bold text-slate-700 text-sm">Correct Transaction</h2>
+          <h2 className="font-bold text-slate-700 text-sm">Edit Transaction</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Liters</label>
               <input
                 type="number"
                 step="0.1"
+                min="0"
                 value={liters}
                 onChange={(e) => setLiters(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
@@ -139,6 +172,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
@@ -182,10 +216,26 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
               disabled={saving}
               className="flex-1 rounded-xl bg-cyan-600 text-white text-sm font-semibold py-3 disabled:opacity-60"
             >
-              {saving ? "Saving…" : "Save Correction"}
+              {saving ? "Saving…" : "Save Changes"}
             </button>
           </div>
         </form>
+      )}
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          title={`Delete #${sale.transactionNumber}?`}
+          confirmLabel="Delete"
+          busy={deleting}
+          error={deleteError}
+          onConfirm={deleteSale}
+          onCancel={() => setConfirmingDelete(false)}
+        >
+          <p>
+            {formatLiters(sale.liters)} · {sale.amount === 0 ? "FREE" : formatMoney(sale.amount)} · {sale.employee.name}
+          </p>
+          <p>This permanently removes the sale and its correction history, and updates the reports. It cannot be undone.</p>
+        </ConfirmDialog>
       )}
 
       {sale.auditLogs.length > 0 && (

@@ -3,6 +3,7 @@
 import { useEffect, useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney, formatLiters, formatAdminDate, formatAdminDateTime } from "@/lib/format";
+import { RemoveEmployeeDialog } from "../RemoveEmployeeDialog";
 
 interface Employee {
   id: string;
@@ -14,6 +15,7 @@ interface Employee {
   employeeCode: string | null;
   createdAt: string;
   lastLoginAt: string | null;
+  _count: { sales: number; meterReadings: number };
 }
 
 interface Perf {
@@ -36,11 +38,22 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const [perf, setPerf] = useState<Perf>({ liters: 0, revenue: 0, transactions: 0 });
   const [newPassword, setNewPassword] = useState("");
   const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [detailsMsg, setDetailsMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   function load() {
     fetch(`/api/employees/${id}`)
       .then((r) => r.json())
-      .then((d) => setEmployee(d.employee));
+      .then((d) => {
+        setEmployee(d.employee);
+        setEditName(d.employee.name);
+        setEditUsername(d.employee.username);
+        setEditEmail(d.employee.email ?? "");
+      });
   }
 
   useEffect(load, [id]);
@@ -63,6 +76,25 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
       body: JSON.stringify({ status: nextStatus }),
     });
     load();
+  }
+
+  async function saveDetails(e: React.FormEvent) {
+    e.preventDefault();
+    setDetailsMsg(null);
+    setSavingDetails(true);
+    const res = await fetch(`/api/employees/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: editName, username: editUsername, email: editEmail }),
+    });
+    setSavingDetails(false);
+    if (res.ok) {
+      setDetailsMsg({ ok: true, text: "Details saved." });
+      load();
+    } else {
+      const data = await res.json().catch(() => null);
+      setDetailsMsg({ ok: false, text: data?.error ?? "Could not save details." });
+    }
   }
 
   async function resetPassword(e: React.FormEvent) {
@@ -98,6 +130,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
       <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-2 text-sm">
         <DetailRow label="Role" value={employee.role} />
+        <DetailRow label="Email" value={employee.email ?? "Not set"} />
         <DetailRow label="Status" value={employee.status} />
         <DetailRow label="Created" value={formatAdminDate(employee.createdAt)} />
         <DetailRow
@@ -135,6 +168,51 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
+      <form onSubmit={saveDetails} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 space-y-3">
+        <h2 className="font-bold text-slate-700 text-sm">Edit Details</h2>
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Full name</label>
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            required
+            minLength={2}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Username</label>
+          <input
+            value={editUsername}
+            onChange={(e) => setEditUsername(e.target.value)}
+            required
+            minLength={3}
+            autoCapitalize="none"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Email (optional)</label>
+          <input
+            type="email"
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+            autoCapitalize="none"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+          />
+        </div>
+        {detailsMsg && (
+          <p className={`text-sm ${detailsMsg.ok ? "text-emerald-600" : "text-red-600"}`}>{detailsMsg.text}</p>
+        )}
+        <button
+          type="submit"
+          disabled={savingDetails}
+          className="w-full rounded-xl bg-cyan-600 text-white text-sm font-semibold py-3 disabled:opacity-60"
+        >
+          {savingDetails ? "Saving…" : "Save Details"}
+        </button>
+      </form>
+
       {employee.role === "EMPLOYEE" && (
         <button
           onClick={toggleStatus}
@@ -161,6 +239,27 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           Set New Password
         </button>
       </form>
+
+      {employee.role === "EMPLOYEE" && (
+        <button
+          onClick={() => setRemoving(true)}
+          className="w-full rounded-2xl border border-red-200 text-red-600 text-sm font-semibold py-3.5"
+        >
+          Remove Employee
+        </button>
+      )}
+
+      {removing && (
+        <RemoveEmployeeDialog
+          employee={employee}
+          onClose={() => setRemoving(false)}
+          onChanged={(result) => {
+            setRemoving(false);
+            if (result === "removed") router.push("/admin/employees");
+            else load();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -16,6 +16,7 @@ export async function GET() {
       employeeCode: true,
       createdAt: true,
       lastLoginAt: true,
+      _count: { select: { sales: true, meterReadings: true } },
     },
   });
   return NextResponse.json({ employees });
@@ -29,8 +30,18 @@ const createSchema = z.object({
   role: z.enum(["ADMIN", "EMPLOYEE"]).default("EMPLOYEE"),
 });
 
-function generateEmployeeCode(count: number) {
-  return `EMP${String(count + 1).padStart(3, "0")}`;
+// Based on the highest existing code, not the employee count: once employees
+// can be removed, count + 1 could collide with a code still in use.
+async function generateEmployeeCode() {
+  const rows = await prisma.user.findMany({
+    where: { employeeCode: { not: null } },
+    select: { employeeCode: true },
+  });
+  const highest = rows.reduce((max, row) => {
+    const match = row.employeeCode?.match(/(\d+)$/);
+    return match ? Math.max(max, parseInt(match[1], 10)) : max;
+  }, 0);
+  return `EMP${String(highest + 1).padStart(3, "0")}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -46,7 +57,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That username is already taken" }, { status: 409 });
   }
 
-  const count = await prisma.user.count({ where: { role: "EMPLOYEE" } });
   const passwordHash = await hashPassword(password);
 
   const user = await prisma.user.create({
@@ -56,7 +66,7 @@ export async function POST(req: NextRequest) {
       email: email || null,
       passwordHash,
       role,
-      employeeCode: role === "EMPLOYEE" ? generateEmployeeCode(count) : null,
+      employeeCode: role === "EMPLOYEE" ? await generateEmployeeCode() : null,
     },
   });
 
